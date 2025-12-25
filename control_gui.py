@@ -29,29 +29,20 @@ class FanStateListener(threading.Thread):
         self.running = False
         
     def decode_state_value(self, value):
-        """Decode the state value from the first field of state_string"""
+        """Decode the state value from the first field of state_string
+        
+        Note: Renessa Halo model only supports LED on/off (no brightness or color modes)
+        """
         try:
             value = int(value)
             state = {
                 'power': (0x10 & value) > 0,
-                'led': (0x20 & value) > 0,
+                'led': (0x20 & value) > 0,  # Renessa Halo: LED on/off only
                 'sleep': (0x80 & value) > 0,
                 'speed': 0x07 & value,
                 'timer': round((0x0F0000 & value) / 65536),
                 'timer_elapsed_mins': round((0xFF000000 & value) * 4 / 16777216),
-                'brightness': round((0x7F00 & value) / 256),
-                'cool': (0x08 & value) > 0,
-                'warm': (0x8000 & value) > 0,
             }
-            # Determine color mode
-            if state['cool'] and state['warm']:
-                state['color_mode'] = 'Daylight'
-            elif state['cool']:
-                state['color_mode'] = 'Cool'
-            elif state['warm']:
-                state['color_mode'] = 'Warm'
-            else:
-                state['color_mode'] = 'Off'
             return state
         except Exception as e:
             print(f"Error decoding state: {e}")
@@ -388,9 +379,10 @@ class FanControlWindow(QWidget):
                 btn.setChecked(i == self.current_timer)
             
             # Update state info display
+            # Note: Renessa Halo only supports LED on/off (no brightness/color modes)
             info_text = f"""
 Power: {'ON' if self.power_on else 'OFF'} | Speed: {self.current_speed} | LED: {'ON' if self.led_on else 'OFF'}
-Sleep: {'ON' if self.sleep_mode else 'OFF'} | Timer: {self.current_timer}h | Color: {state.get('color_mode', 'N/A')}
+Sleep: {'ON' if self.sleep_mode else 'OFF'} | Timer: {self.current_timer}h
             """.strip()
             self.state_info.setText(info_text)
             

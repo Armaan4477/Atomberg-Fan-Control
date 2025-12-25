@@ -24,7 +24,7 @@ Atomberg Fan Control is a local network control solution for Atomberg smart ceil
 - **Multi-Fan Support**: Configure and switch between multiple fans in your home
 - **Power Control**: Turn fans on and off with visual feedback
 - **Speed Adjustment**: Control fan speed from 0 to 6 using a slider or quick buttons
-- **LED Control**: Toggle the fan's LED indicator
+- **LED Control**: Toggle the fan's LED indicator on/off
 - **Sleep Mode**: Enable or disable sleep mode for gradual speed reduction
 - **Timer Function**: Set auto-off timers for 1, 2, 3, or 4 hours
 - **Real-Time State Sync**: Automatically receives and displays current fan state via UDP broadcasts
@@ -158,25 +158,11 @@ Fans broadcast their state as JSON with a `state_string` field. The state is enc
 | Bits | Field | Description |
 |------|-------|-------------|
 | 0-2  | Speed | Fan speed (0-6) |
-| 3    | Cool  | Cool mode flag |
 | 4    | Power | Power state |
 | 5    | LED   | LED state |
 | 7    | Sleep | Sleep mode state |
-| 8-14 | Brightness | LED brightness level |
-| 15   | Warm  | Warm mode flag |
 | 16-19| Timer | Timer hours (0-4) |
 | 24-31| Timer Elapsed | Minutes elapsed in timer |
-
-### Color Modes
-
-The color mode is determined by the combination of cool and warm flags:
-
-| Cool | Warm | Mode |
-|------|------|------|
-| 0    | 0    | Off |
-| 1    | 0    | Cool |
-| 0    | 1    | Warm |
-| 1    | 1    | Daylight |
 
 ## Troubleshooting
 
