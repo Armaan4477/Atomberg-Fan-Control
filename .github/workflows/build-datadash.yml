@@ -1,4 +1,4 @@
-name: Build DataDash
+name: Build Atomberg Control
 
 on:
   push:
@@ -41,11 +41,11 @@ jobs:
             --icon "Atomberg Control.app" 100 150 \
             --app-drop-link 300 150 \
             --no-internet-enable \
-            "Atomberg Control(macos arm).dmg" \
+            "Atomberg Control.dmg" \
             "Atomberg Control.app"
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: Atomberg Control-macOS-arm
-          path: Desktop-app/dist/Atomberg Control(macos arm).dmg
+          name: Atomberg Control
+          path: dist/Atomberg Control.dmg
