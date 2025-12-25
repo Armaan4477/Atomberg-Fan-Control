@@ -22,7 +22,6 @@ jobs:
 
       - name: Build for macOS
         run: |
-          cd Desktop-app
           pyinstaller --windowed \
           --name="Atomberg Control" \
           control_gui.py
@@ -32,7 +31,7 @@ jobs:
 
       - name: Create DMG
         run: |
-          cd Desktop-app/dist
+          cd dist
           create-dmg \
             --volname "DataDash" \
             --window-pos 200 120 \
