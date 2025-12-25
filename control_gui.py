@@ -70,16 +70,33 @@ class FanStateListener(threading.Thread):
             while self.running:
                 try:
                     data, addr = sock.recvfrom(4096)
-                    # Convert hex to ASCII
+                    # Try to parse the message - could be hex-encoded or plain JSON
                     try:
-                        ascii_data = bytes.fromhex(data.decode('utf-8')).decode('utf-8')
+                        raw_data = data.decode('utf-8').strip()
+                        
+                        # Try hex decoding first, fall back to plain JSON
+                        try:
+                            # Check if it looks like hex (only hex chars)
+                            if all(c in '0123456789abcdefABCDEF' for c in raw_data):
+                                ascii_data = bytes.fromhex(raw_data).decode('utf-8')
+                            else:
+                                ascii_data = raw_data
+                        except ValueError:
+                            # Not valid hex, treat as plain JSON
+                            ascii_data = raw_data
+                        
                         state_json = json.loads(ascii_data)
+                        
+                        # Must have required fields
+                        if 'state_string' not in state_json:
+                            continue
                         
                         # Check for duplicate messages
                         message_id = state_json.get('message_id', '')
-                        if message_id in self.processed_messages:
+                        if message_id and message_id in self.processed_messages:
                             continue
-                        self.processed_messages.add(message_id)
+                        if message_id:
+                            self.processed_messages.add(message_id)
                         
                         # Keep only last 100 message IDs
                         if len(self.processed_messages) > 100:
@@ -95,8 +112,11 @@ class FanStateListener(threading.Thread):
                                 decoded_state['raw_state'] = state_string
                                 self.signals.state_received.emit(decoded_state)
                                 
-                    except (ValueError, json.JSONDecodeError) as e:
-                        print(f"Error parsing message: {e}")
+                    except json.JSONDecodeError:
+                        # Not a valid JSON message, ignore
+                        pass
+                    except Exception as e:
+                        print(f"Error parsing state message: {e}")
                         
                 except socket.timeout:
                     continue
@@ -330,7 +350,7 @@ class FanControlWindow(QWidget):
         self.current_fan = fan_name
         self.current_ip = ip
         self.fan_title.setText(f"🌬️ {fan_name}")
-        self.state_info.setText("Fetching state...")
+        self.state_info.setText("Waiting for state broadcast...\nUse any control to trigger a state update")
         self.status_label.setText(f"Connected to {ip}")
         
     def update_from_state(self, state):
@@ -387,10 +407,9 @@ Sleep: {'ON' if self.sleep_mode else 'OFF'} | Timer: {self.current_timer}h | Col
             self._updating_ui = False
     
     def request_state_refresh(self):
-        """Send a dummy command to trigger state broadcast"""
-        self.status_label.setText("🔄 Requesting state update...")
-        # Send current speed to trigger state response without changing anything
-        self.send_command({"speed": self.current_speed})
+        """Request state by sending an empty query - note: this may not work on all fans"""
+        self.status_label.setText("🔄 Waiting for state broadcast...")
+        self.state_info.setText("Waiting for state broadcast...\nInteract with any control to see current state")
         
     def toggle_power(self):
         if self._updating_ui:
@@ -513,9 +532,7 @@ class FanControlApp(QMainWindow):
         """Handle fan selection"""
         self.control_screen.set_fan(fan_name, ip)
         self.stack.setCurrentWidget(self.control_screen)
-        
-        # Send a command to trigger state response
-        QTimer.singleShot(100, self.control_screen.request_state_refresh)
+        # Don't send any command - wait for user interaction or next broadcast
         
     def on_state_received(self, state):
         """Handle received state from fan"""
