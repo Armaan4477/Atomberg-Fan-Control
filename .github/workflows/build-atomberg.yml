@@ -26,13 +26,8 @@ jobs:
       - name: Build for macOS
         run: |
           pyinstaller --windowed \
-          --name="E-HR Mgnt System" \
-          --add-data="images:images" \
+          --name="Atomberg Control" \
           --add-data="encrypted_credentials.txt:." \
-          --add-data "Admin.py:." \
-          --add-data "Employee.py:." \
-          --add-data "Manager.py:." \
-          --add-data "HR.py:." \
           main.py
 
       - name: Install create-dmg
@@ -42,18 +37,18 @@ jobs:
         run: |
           cd dist
           create-dmg \
-            --volname "E-HR Mgnt System" \
+            --volname "Atomberg Control" \
             --window-pos 200 120 \
             --window-size 400 400 \
             --icon-size 128 \
-            --icon "E-HR Mgnt System.app" 100 150 \
+            --icon "Atomberg Control.app" 100 150 \
             --app-drop-link 300 150 \
             --no-internet-enable \
-            "E-HR Mgnt System(macos-arm).dmg" \
-            "E-HR Mgnt System.app"
+            "Atomberg Control(macos-arm).dmg" \
+            "Atomberg Control.app"
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: E-HR Mgnt System(macOS arm)
-          path: dist/E-HR Mgnt System(macos-arm).dmg
+          name: Atomberg Control(macOS arm)
+          path: dist/Atomberg Control(macos-arm).dmg
