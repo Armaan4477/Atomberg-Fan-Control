@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import socket
 import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
+import base64
+import os
+from cryptography.fernet import Fernet
 
 import requests
 
@@ -32,22 +36,64 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 def load_env(env_path: Path) -> Dict[str, str]:
-    values: Dict[str, str] = {}
-    if not env_path.exists():
-        raise FileNotFoundError(f"Missing .env file at {env_path}")
+    def _parse_key_values(raw_text: str) -> Dict[str, str]:
+        # Accept both JSON and loose KEY=VALUE entries (with or without braces/commas).
+        try:
+            parsed = json.loads(raw_text)
+            if isinstance(parsed, dict):
+                return {str(k): str(v) for k, v in parsed.items()}
+        except Exception:
+            pass
 
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        values[key.strip()] = value.strip().strip('"').strip("'")
+        values: Dict[str, str] = {}
+        pattern = re.compile(r"([A-Z0-9_]+)\s*=\s*([^,\n\r}]+)")
+        for key, value in pattern.findall(raw_text):
+            values[key.strip()] = value.strip()
+        return values
 
-    return values
+    try:
+        machine_id = os.name + sys.platform
+        key_material = machine_id.encode() + b'hangman_secure_key'
+        import hashlib
+        key_hash = hashlib.sha256(key_material).digest()
+        key = base64.urlsafe_b64encode(key_hash[:32])
+
+        encrypted_file_path = resource_path('encrypted_credentials.txt')
+        if not os.path.exists(encrypted_file_path):
+            raise FileNotFoundError(f"Credentials file not found: {encrypted_file_path}")
+            
+        with open(encrypted_file_path, 'rb') as f:
+            encrypted_creds = f.read()
+        
+        cipher = Fernet(key)
+        decrypted_data = cipher.decrypt(encrypted_creds)
+        text = decrypted_data.decode("utf-8", errors="ignore")
+        cred_data = _parse_key_values(text)
+        if cred_data:
+            return cred_data
+    except Exception as e:
+        print(f"Encrypted credentials unavailable, falling back to plain file: {str(e)}")
+
+    try:
+        if not env_path.exists():
+            env_path = Path(__file__).with_name("credentials.json")
+        text = env_path.read_text(encoding="utf-8")
+        cred_data = _parse_key_values(text)
+        if cred_data:
+            return cred_data
+    except Exception as e:
+        print(f"Error loading fallback credentials: {str(e)}")
+
+    return {}
 
 
 class AtombergClient:
