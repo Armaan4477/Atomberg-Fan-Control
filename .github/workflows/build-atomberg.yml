@@ -10,9 +10,9 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Install PyQt6
+      - name: Install Dependencies
         run: |
           # Download and install PyQt6 wheel directly from the URL
           pip3 install wheel --break-system-packages
@@ -20,6 +20,7 @@ jobs:
           # Also install dependencies
           pip3 install PyQt6-Qt6 PyQt6-sip --break-system-packages
           pip3 install pyinstaller --break-system-packages
+          pip3 install requests --break-system-packages
 
       - name: Build for macOS
         run: |
