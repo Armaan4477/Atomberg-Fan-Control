@@ -25,7 +25,7 @@ jobs:
         run: |
           pyinstaller --windowed \
           --name="Atomberg Control" \
-          control_gui.py
+          atomberg_gui.py
 
       - name: Install create-dmg
         run: brew install create-dmg
@@ -34,7 +34,7 @@ jobs:
         run: |
           cd dist
           create-dmg \
-            --volname "DataDash" \
+            --volname "Atomberg Control" \
             --window-pos 200 120 \
             --window-size 400 400 \
             --icon-size 128 \
