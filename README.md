@@ -1,204 +1,199 @@
-# Atomberg Fan Control
+# Atomberg Control
 
-A desktop application for controlling Atomberg smart fans over a local network using UDP communication. Built with Python and PyQt6, this application provides a modern graphical interface for managing fan settings including power, speed, LED, sleep mode, and timer functions.
+Desktop and CLI controller for Atomberg smart fans, built with Python and PyQt6.
 
-## Table of Contents
+This project uses the Atomberg developer API for account/device discovery and local UDP for low-latency fan commands on your LAN.
 
-- [Overview](#overview)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Technical Details](#technical-details)
-- [Protocol Specification](#protocol-specification)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+## What This Project Does
 
-## Overview
+- Lists fans linked to your Atomberg account
+- Launches a desktop GUI to control fan power, speed, LED, sleep mode, and timer
+- Sends fan control commands locally over UDP for fast response
+- Supports scriptable terminal usage through CLI commands
+- Supports encrypted credential packaging for distributable builds
 
-Atomberg Fan Control is a local network control solution for Atomberg smart ceiling fans. The application communicates directly with fans on your local network via UDP packets, eliminating the need for cloud connectivity. This provides faster response times and allows control even when internet connectivity is unavailable.
+## Project Layout
 
-## Features
-
-- **Multi-Fan Support**: Configure and switch between multiple fans in your home
-- **Power Control**: Turn fans on and off with visual feedback
-- **Speed Adjustment**: Control fan speed from 0 to 6 using a slider or quick buttons
-- **LED Control**: Toggle the fan's LED indicator on/off
-- **Sleep Mode**: Enable or disable sleep mode for gradual speed reduction
-- **Timer Function**: Set auto-off timers for 1, 2, 3, or 4 hours
-- **Real-Time State Sync**: Automatically receives and displays current fan state via UDP broadcasts
-- **Modern Dark UI**: Clean, intuitive interface optimized for ease of use
+- `main.py`: GUI, CLI, API client, UDP discovery, and command sender
+- `encrypt_credentials.py`: encrypts `credentials.json` into `encrypted_credentials.txt`
+- `credentials.json`: local credentials source (do not commit real secrets)
+- `requirements.txt`: Python dependencies
 
 ## Requirements
 
-### System Requirements
+- Python 3.8+
+- macOS, Linux, or Windows
+- Same local network as your Atomberg fans
+- Atomberg developer credentials:
+    - `ATOMBERG_API_KEY`
+    - `ATOMBERG_REFRESH_TOKEN`
+    - optional `ATOMBERG_BASE_URL` (defaults to `https://api.developer.atomberg-iot.com`)
 
-- Python 3.8 or higher
-- macOS, Windows, or Linux operating system
-- Network connectivity to the same local network as the Atomberg fans
-
-### Python Dependencies
-
-- PyQt6
-
-## Installation
-
-1. Clone the repository:
+Install dependencies:
 
 ```bash
-git clone https://github.com/yourusername/Atomberg_Control.git
-cd Atomberg_Control
+pip install -r requirements.txt
 ```
 
-2. Create and activate a virtual environment (recommended):
+## Credentials Setup
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On macOS/Linux
-# or
-.venv\Scripts\activate     # On Windows
-```
+The app loads credentials in this order:
 
-3. Install the required dependencies:
+1. `encrypted_credentials.txt` (preferred, if present)
+2. fallback credentials file (`.env` or `credentials.json`)
 
-```bash
-pip install PyQt6
-```
+Accepted file formats:
 
-## Configuration
-
-Before running the application, you need to configure the IP addresses of your Atomberg fans. Open `control_gui.py` and locate the `FanSelectionWindow` class:
-
-```python
-class FanSelectionWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.fans = {
-            "Sofa Fan": "192.168.29.14",
-            "Table Fan": "192.168.29.15"
-        }
-```
-
-Update the dictionary with your fan names and their corresponding IP addresses. You can add or remove entries as needed.
-
-### Finding Fan IP Addresses
-
-To discover the IP addresses of your Atomberg fans:
-
-1. Check your router's DHCP client list for devices manufactured by Atomberg
-2. Use the `find.py` utility script included in this repository
-3. Use network scanning tools such as `nmap` or `arp-scan`
-
-## Usage
-
-### Starting the Application
-
-Run the application using Python:
-
-```bash
-python control_gui.py
-```
-
-### Navigating the Interface
-
-1. **Fan Selection Screen**: Upon launch, select the fan you wish to control from the list
-2. **Control Screen**: Use the various controls to adjust fan settings:
-   - **Power Button**: Toggle fan power on/off
-   - **Speed Slider**: Drag to set speed (0-6) or use +/- buttons
-   - **LED Button**: Toggle LED indicator
-   - **Sleep Button**: Enable/disable sleep mode
-   - **Timer Buttons**: Select auto-off timer duration
-3. **Back Button**: Return to fan selection to switch fans
-4. **Refresh Button**: Request state update from the fan
-
-### State Synchronization
-
-The application listens for UDP broadcast messages from fans on port 5625. When a fan broadcasts its state, the interface automatically updates to reflect the current settings. If the state appears outdated, interact with any control to trigger a state broadcast from the fan.
-
-## Technical Details
-
-### Architecture
-
-The application consists of three main components:
-
-1. **FanSelectionWindow**: Initial screen for selecting which fan to control
-2. **FanControlWindow**: Main control interface with all fan controls
-3. **FanStateListener**: Background thread that listens for UDP state broadcasts
-
-### Network Communication
-
-| Direction | Port | Protocol | Purpose |
-|-----------|------|----------|---------|
-| Outbound  | 5600 | UDP      | Send control commands to fan |
-| Inbound   | 5625 | UDP      | Receive state broadcasts from fan |
-
-### Threading Model
-
-The application uses a daemon thread for the state listener to ensure non-blocking UI operation. Thread-safe communication between the listener and UI is achieved through PyQt signals.
-
-## Protocol Specification
-
-### Command Format
-
-Commands are sent as JSON objects via UDP:
+- JSON object, for example:
 
 ```json
-{"power": true}
-{"speed": 4}
-{"led": false}
-{"sleep": true}
-{"timer": 2}
+{
+    "ATOMBERG_API_KEY": "your_api_key",
+    "ATOMBERG_REFRESH_TOKEN": "your_refresh_token",
+    "ATOMBERG_BASE_URL": "https://api.developer.atomberg-iot.com"
+}
 ```
 
-### State Broadcast Format
+- `KEY=VALUE` style entries
 
-Fans broadcast their state as JSON with a `state_string` field. The state is encoded as a numeric value with the following bit structure:
+### Encrypt Credentials (recommended for builds)
 
-| Bits | Field | Description |
-|------|-------|-------------|
-| 0-2  | Speed | Fan speed (0-6) |
-| 4    | Power | Power state |
-| 5    | LED   | LED state |
-| 7    | Sleep | Sleep mode state |
-| 16-19| Timer | Timer hours (0-4) |
-| 24-31| Timer Elapsed | Minutes elapsed in timer |
+```bash
+python encrypt_credentials.py
+```
+
+This creates `encrypted_credentials.txt`, which is what packaged builds should ship with.
+
+## Run The App
+
+Launch GUI (default):
+
+```bash
+python main.py
+```
+
+Equivalent explicit command:
+
+```bash
+python main.py gui
+```
+
+## CLI Usage
+
+General format:
+
+```bash
+python main.py <command> [args]
+```
+
+Available commands:
+
+- `devices`
+- `state <device_id|all>`
+- `on <device_id>`
+- `off <device_id>`
+- `speed <device_id> <1-6>`
+- `sleep <device_id> <on|off>`
+- `led <device_id> <on|off>`
+- `timer <device_id> <0|1|2|3|4>`
+- `raw <device_id> '<json_object>'`
+
+Examples:
+
+```bash
+python main.py devices
+python main.py state all
+python main.py speed YOUR_DEVICE_ID 5
+python main.py sleep YOUR_DEVICE_ID on
+python main.py raw YOUR_DEVICE_ID '{"power": true, "speed": 3}'
+```
+
+## GUI Overview
+
+The desktop app has two screens:
+
+- Device selection screen: loads your account devices and shows online/offline status
+- Control screen: sends local commands and updates UI state optimistically
+
+Controls available in GUI:
+
+- Power toggle
+- Speed slider (1 to 6)
+- Sleep toggle
+- LED toggle
+- Timer set (0 to 4)
+- Manual state refresh
+
+## Networking Notes
+
+- Outbound command UDP port: `5600`
+- Inbound beacon listener UDP port: `5625`
+- Device IPs are discovered from fan beacons on the local network
+
+If local IP discovery fails, commands cannot be sent locally until a beacon is received.
+
+## Build macOS App (PyInstaller)
+
+Install build tools:
+
+```bash
+pip install pyinstaller
+```
+
+Build:
+
+```bash
+pyinstaller --windowed \
+    --name="Atomberg Control" \
+    --add-data="encrypted_credentials.txt:." \
+    main.py
+```
+
+Optional DMG creation (macOS):
+
+```bash
+brew install create-dmg
+cd dist
+create-dmg \
+    --volname "Atomberg Control" \
+    --window-pos 200 120 \
+    --window-size 400 400 \
+    --icon-size 128 \
+    --icon "Atomberg Control.app" 100 150 \
+    --app-drop-link 300 150 \
+    --no-internet-enable \
+    "Atomberg Control.dmg" \
+    "Atomberg Control.app"
+```
 
 ## Troubleshooting
 
-### Application Cannot Connect to Fan
+### "Local fan IP not discovered yet"
 
-1. Verify the fan IP address is correct in the configuration
-2. Ensure your computer is on the same local network as the fan
-3. Check that no firewall is blocking UDP ports 5600 and 5625
-4. Confirm the fan is powered on and connected to WiFi
+- Ensure laptop and fan are on the same LAN
+- Wait a few seconds for UDP beacons
+- Check firewall rules for UDP `5600` and `5625`
 
-### State Not Updating
+### API/Auth Errors
 
-1. The state listener requires port 5625 to be available
-2. Some network configurations may block UDP broadcasts
-3. Try interacting with a control to trigger a state broadcast
-4. Check if another instance of the application is already running
+- Verify `ATOMBERG_API_KEY` and `ATOMBERG_REFRESH_TOKEN`
+- Confirm credentials file format is valid JSON or `KEY=VALUE`
 
-### Permission Errors on Port Binding
+### GUI Does Not Start
 
-On some systems, binding to UDP ports may require elevated privileges. If you encounter permission errors:
+- Confirm PyQt6 is installed: `pip install -r requirements.txt`
+- Run from terminal to inspect startup errors: `python main.py`
 
-- On Linux/macOS: Run with `sudo` or configure capabilities
-- Ensure no other application is using port 5625
+## Security Notes
 
-### UI Not Responding
+- Treat API key and refresh token as secrets
+- Do not commit real credentials to source control
+- Prefer encrypted credentials in packaged artifacts
 
-If the interface becomes unresponsive:
+## Disclaimer
 
-1. Close and restart the application
-2. Check system resources (CPU, memory usage)
-3. Verify network connectivity
+Unofficial third-party tool for Atomberg-compatible devices. Not affiliated with or endorsed by Atomberg Technologies.
 
 ## License
 
-This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
-
----
-
-Developed for use with Atomberg smart ceiling fans. This is an unofficial third-party application and is not affiliated with or endorsed by Atomberg Technologies.
+Licensed under the terms in [LICENSE](LICENSE).
