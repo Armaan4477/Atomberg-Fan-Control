@@ -26,6 +26,7 @@ jobs:
       - name: Build for macOS
         run: |
           pyinstaller --windowed \
+          --icon=icon.icns \
           --name="Atomberg Control" \
           --add-data="encrypted_credentials.txt:." \
           main.py
